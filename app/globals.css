@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Styles personnalisés pour le formulaire */
+.form-container {
+  @apply relative overflow-hidden;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+}
+
+.form-container::before {
+  content: '';
+  @apply absolute top-0 left-0 w-full h-1;
+  background: linear-gradient(90deg, #3B82F6, #6366F1, #8B5CF6);
+}
+
+.form-input {
+  @apply transition-all duration-300 ease-in-out;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.form-input:focus {
+  @apply ring-2 ring-blue-500 border-transparent;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+}
+
+.submit-button {
+  background: linear-gradient(135deg, #3B82F6, #6366F1);
+  @apply relative overflow-hidden transition-all duration-300;
+}
+
+.submit-button::before {
+  content: '';
+  @apply absolute top-0 left-0 w-full h-full opacity-0 transition-opacity duration-300;
+  background: linear-gradient(135deg, #2563EB, #4F46E5);
+}
+
+.submit-button:hover::before {
+  @apply opacity-100;
+}
+
+.submit-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.divider {
+  @apply relative my-6;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  @apply absolute top-1/2 w-5/12 h-px bg-gray-300;
+}
+
+.divider::before {
+  @apply left-0;
+}
+
+.divider::after {
+  @apply right-0;
+}
+
+/* Animation de chargement pour le bouton */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.loading {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+
