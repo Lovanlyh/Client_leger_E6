@@ -1,3 +1,4 @@
+export const runtime = 'nodejs'
 import { NextResponse } from 'next/server'
 import { verify } from 'jsonwebtoken'
 import { cookies } from 'next/headers'
