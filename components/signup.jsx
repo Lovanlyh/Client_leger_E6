@@ -1,17 +1,27 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Loader from './loader'
+import { useAuth } from '../context/AuthContext'
 
 export default function SignUp() {
+  const { signup, isAuthenticated } = useAuth()
+  const router = useRouter()
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [passwordErrors, setPasswordErrors] = useState([])
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
+
+  // Si l'utilisateur est déjà connecté, on le redirige
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/posts');
+    }
+  }, [isAuthenticated, router]);
 
   const validatePassword = (password) => {
     const errors = []
@@ -57,36 +67,10 @@ export default function SignUp() {
     setIsLoading(true)
 
     try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        // Connexion automatique après l'inscription
-        const loginResponse = await fetch('/api/auth/signin', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email, password }),
-        })
-
-        if (loginResponse.ok) {
-          router.push('/dashboard')
-        } else {
-          router.push('/signin')
-        }
-      } else {
-        setError(data.message || 'Erreur lors de l\'inscription')
-      }
+      await signup(name, email, password)
+      // La redirection est gérée par le hook `signup`
     } catch (err) {
-      setError('Erreur de connexion au serveur')
+      setError(err.message)
     } finally {
       setIsLoading(false)
     }
@@ -123,6 +107,21 @@ export default function SignUp() {
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-5">
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                Nom
+              </label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                required
+                className="mt-1 block w-full px-4 py-3 rounded-xl border border-gray-300 bg-white/50 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-300 hover:-translate-y-0.5"
+                placeholder="Votre nom"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Adresse email

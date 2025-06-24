@@ -4,58 +4,32 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Loader from './loader'
+import { useAuth } from '../context/AuthContext'
 
 export default function SignIn() {
+  const { login, isAuthenticated } = useAuth()
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const router = useRouter()
+  const [loading, setLoading] = useState(false)
 
+  // Si l'utilisateur est déjà connecté, on le redirige
   useEffect(() => {
-    // Vérifier si l'utilisateur est déjà connecté
-    const checkAuthStatus = async () => {
-      try {
-        const response = await fetch('/api/auth/user')
-        if (response.ok) {
-          router.push('/dashboard')
-        }
-      } catch (error) {
-        console.error("Erreur lors de la vérification du statut d'authentification:", error)
-      }
+    if (isAuthenticated) {
+      router.push('/posts');
     }
-    
-    checkAuthStatus()
-  }, [router])
+  }, [isAuthenticated, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setLoading(true)
     setError('')
-
+    setLoading(true)
     try {
-      const response = await fetch('/api/auth/signin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        console.log('Connexion réussie, redirection...')
-        // Attendre un court moment pour que le cookie soit bien défini
-        setTimeout(() => {
-          router.push(data.redirect || '/dashboard')
-        }, 300)
-      } else {
-        setError(data.message || 'Une erreur est survenue')
-      }
-    } catch (error) {
-      console.error('Erreur de connexion:', error)
-      setError('Une erreur est survenue lors de la connexion')
+      await login(email, password)
+      // La redirection est gérée par le hook `login`
+    } catch (err) {
+      setError(err.message)
     } finally {
       setLoading(false)
     }

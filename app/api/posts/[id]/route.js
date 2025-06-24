@@ -43,11 +43,10 @@ export async function GET(request, { params }) {
   }
 }
 
-// Supprimer un post
+// DELETE /api/posts/[id] - Supprimer un post
 export async function DELETE(request, { params }) {
   try {
     const token = cookies().get('auth-token')
-
     if (!token) {
       return NextResponse.json(
         { message: 'Non authentifié' },
@@ -56,10 +55,11 @@ export async function DELETE(request, { params }) {
     }
 
     const decoded = verify(token.value, process.env.JWT_SECRET || 'your-secret-key')
-    const { id } = params
+    const postId = params.id
 
+    // Vérifier si le post existe et appartient à l'utilisateur
     const post = await prisma.post.findUnique({
-      where: { id },
+      where: { id: postId },
       select: { authorId: true }
     })
 
@@ -77,11 +77,12 @@ export async function DELETE(request, { params }) {
       )
     }
 
+    // Supprimer le post
     await prisma.post.delete({
-      where: { id }
+      where: { id: postId }
     })
 
-    return NextResponse.json({ message: 'Post supprimé avec succès' })
+    return NextResponse.json({ message: 'Post supprimé' })
   } catch (error) {
     console.error('Erreur lors de la suppression du post:', error)
     return NextResponse.json(

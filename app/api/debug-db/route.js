@@ -1,34 +1,46 @@
 import { NextResponse } from 'next/server'
-import prisma from '../../utils/prisma'
+import { PrismaClient } from '@prisma/client'
 
 export async function GET() {
+  const prisma = new PrismaClient({
+    log: ['query', 'info', 'warn', 'error'],
+  })
+  
   try {
-    // Test complet de la connexion
-    console.log('Tentative de connexion à la base de données...')
+    console.log('Test de connexion à la base de données...')
+    console.log('URL de la base de données:', process.env.DATABASE_URL)
+    
+    // Test de connexion
     await prisma.$connect()
-    console.log('Connexion établie')
+    console.log('Connexion établie avec succès')
     
-    // Test des opérations CRUD
-    console.log('Test de lecture...')
+    // Test de requête simple
     const userCount = await prisma.user.count()
-    console.log(`Nombre d'utilisateurs: ${userCount}`)
+    console.log('Nombre d\'utilisateurs:', userCount)
     
-    // Informations sur la base de données
-    const url = process.env.DATABASE_URL || 'Non définie'
-    const maskedUrl = url.replace(/:([^:@]+)@/, ':******@')
+    // Test de création d'utilisateur
+    const testUser = await prisma.user.create({
+      data: {
+        email: `test${Date.now()}@test.com`,
+        password: 'test123',
+      }
+    })
+    console.log('Utilisateur test créé:', testUser.id)
+    
+    // Suppression de l'utilisateur test
+    await prisma.user.delete({
+      where: { id: testUser.id }
+    })
+    console.log('Utilisateur test supprimé')
     
     return NextResponse.json({
       status: 'success',
-      message: 'Connexion à la base de données réussie',
-      info: {
-        dbUrl: maskedUrl,
-        userCount,
-        prismaVersion: require('@prisma/client/package.json').version,
-        nodeEnv: process.env.NODE_ENV
-      }
+      message: 'Tests de base de données réussis',
+      databaseUrl: process.env.DATABASE_URL?.replace(/:[^:\/\/\s]*@/, ':****@')
     })
+    
   } catch (error) {
-    console.error('ERREUR DE CONNEXION:', error)
+    console.error('Erreur détaillée:', error)
     
     return NextResponse.json({
       status: 'error',
@@ -37,9 +49,11 @@ export async function GET() {
         name: error.name,
         message: error.message,
         code: error.code,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        clientVersion: prisma._engineConfig.generator.config.version,
+        details: error.stack
       }
     }, { status: 500 })
+    
   } finally {
     await prisma.$disconnect()
   }

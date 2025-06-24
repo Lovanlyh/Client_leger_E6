@@ -1,65 +1,51 @@
 // Ce script permet de créer/réinitialiser un utilisateur test 
 // avec un mot de passe connu pour faciliter les tests
 
-const { PrismaClient } = require('@prisma/client')
-const bcrypt = require('bcryptjs')
+import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
-async function resetTestUser() {
+async function main() {
   try {
-    const email = 'test@test.com'
-    const password = 'Password123!'
-    
-    console.log(`Recherche de l'utilisateur avec l'email: ${email}`)
-    
-    // Vérifier si l'utilisateur existe déjà
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
+    console.log('Connexion à la base de données...')
+    await prisma.$connect()
+    console.log('Connexion établie')
+
+    // Supprimer l'utilisateur test s'il existe
+    console.log('Suppression de l\'utilisateur test existant...')
+    await prisma.user.deleteMany({
+      where: {
+        email: 'test@test.com'
+      }
     })
-    
-    // Hasher le mot de passe
-    const hashedPassword = await bcrypt.hash(password, 10)
-    
-    if (existingUser) {
-      console.log(`Utilisateur trouvé, mise à jour du mot de passe...`)
-      
-      // Mettre à jour l'utilisateur existant
-      const updatedUser = await prisma.user.update({
-        where: { email },
-        data: { password: hashedPassword }
-      })
-      
-      console.log(`Utilisateur mis à jour:`)
-      console.log(`- ID: ${updatedUser.id}`)
-      console.log(`- Email: ${updatedUser.email}`)
-      console.log(`- Mot de passe réinitialisé à: ${password}`)
-    } else {
-      console.log(`Utilisateur non trouvé, création d'un nouvel utilisateur...`)
-      
-      // Créer un nouvel utilisateur
-      const newUser = await prisma.user.create({
-        data: {
-          email,
-          password: hashedPassword
-        }
-      })
-      
-      console.log(`Nouvel utilisateur créé:`)
-      console.log(`- ID: ${newUser.id}`)
-      console.log(`- Email: ${newUser.email}`)
-      console.log(`- Mot de passe: ${password}`)
-    }
-    
-    console.log(`\nVous pouvez maintenant vous connecter avec:`)
-    console.log(`Email: ${email}`)
-    console.log(`Mot de passe: ${password}`)
-    
+    console.log('Utilisateur test supprimé si existant')
+
+    // Créer le mot de passe hashé
+    const hashedPassword = await bcrypt.hash('test123', 10)
+
+    // Créer l'utilisateur test
+    console.log('Création du nouvel utilisateur test...')
+    const user = await prisma.user.create({
+      data: {
+        email: 'test@test.com',
+        password: hashedPassword,
+        name: 'Utilisateur Test',
+        username: 'testuser'
+      }
+    })
+
+    console.log('Utilisateur test créé avec succès:', {
+      id: user.id,
+      email: user.email,
+      name: user.name
+    })
+
   } catch (error) {
-    console.error('Erreur lors de la réinitialisation de l\'utilisateur test:', error)
+    console.error('Erreur:', error)
   } finally {
     await prisma.$disconnect()
   }
 }
 
-resetTestUser() 
+main() 

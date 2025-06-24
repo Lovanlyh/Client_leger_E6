@@ -3,30 +3,21 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Loader from '../../components/loader'
+import { useAuth } from '../../context/AuthContext'
 
-export default function Dashboard() {
+export default function Posts() {
+  const { user, isAuthenticated, loading: authLoading } = useAuth()
   const router = useRouter()
+  
   const [posts, setPosts] = useState([])
   const [newPost, setNewPost] = useState('')
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [replyingTo, setReplyingTo] = useState(null)
   const [replyContent, setReplyContent] = useState('')
 
-  // Charger les posts et les informations de l'utilisateur
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchPosts = async () => {
       try {
-        // Récupérer les informations de l'utilisateur
-        const userResponse = await fetch('/api/auth/user')
-        if (!userResponse.ok) {
-          throw new Error('Non authentifié')
-        }
-        const userData = await userResponse.json()
-        setUser(userData)
-
-        // Récupérer les posts
         const postsResponse = await fetch('/api/posts')
         if (!postsResponse.ok) {
           throw new Error('Erreur lors de la récupération des posts')
@@ -34,24 +25,19 @@ export default function Dashboard() {
         const postsData = await postsResponse.json()
         setPosts(postsData)
       } catch (error) {
-        console.error('Erreur:', error)
         setError(error.message)
-        if (error.message === 'Non authentifié') {
-          router.push('/signin')
-        }
-      } finally {
-        setLoading(false)
       }
     }
+    fetchPosts()
+  }, [])
 
-    fetchData()
-  }, [router])
-
-  // Gérer la création d'un nouveau post
   const handleSubmitPost = async (e) => {
     e.preventDefault()
     if (!newPost.trim()) return
-
+    if (!isAuthenticated) {
+      router.push('/signin')
+      return
+    }
     try {
       const response = await fetch('/api/posts', {
         method: 'POST',
@@ -59,25 +45,24 @@ export default function Dashboard() {
         body: JSON.stringify({ content: newPost }),
         credentials: 'include'
       })
-
       if (!response.ok) {
         throw new Error('Erreur lors de la création du post')
       }
-
       const data = await response.json()
       setPosts(prevPosts => [data, ...prevPosts])
       setNewPost('')
     } catch (error) {
-      console.error('Erreur:', error)
       setError(error.message)
     }
   }
 
-  // Gérer la réponse à un post
   const handleReply = async (e) => {
     e.preventDefault()
     if (!replyContent.trim() || !replyingTo) return
-
+    if (!isAuthenticated) {
+      router.push('/signin')
+      return
+    }
     try {
       const response = await fetch(`/api/posts/${replyingTo}/reply`, {
         method: 'POST',
@@ -85,11 +70,9 @@ export default function Dashboard() {
         body: JSON.stringify({ content: replyContent }),
         credentials: 'include'
       })
-
       if (!response.ok) {
         throw new Error('Erreur lors de la réponse')
       }
-
       const data = await response.json()
       setPosts(prevPosts => {
         const updatedPosts = [...prevPosts]
@@ -105,26 +88,11 @@ export default function Dashboard() {
       setReplyingTo(null)
       setReplyContent('')
     } catch (error) {
-      console.error('Erreur:', error)
       setError(error.message)
     }
   }
 
-  // Gérer la déconnexion
-  const handleSignOut = async () => {
-    try {
-      const response = await fetch('/api/auth/signout', {
-        method: 'POST'
-      })
-      if (response.ok) {
-        router.push('/signin')
-      }
-    } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error)
-    }
-  }
-
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader />
@@ -134,22 +102,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* En-tête */}
-      <header className="bg-white shadow">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-900">Accueil</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-gray-600">{user?.name}</span>
-            <button
-              onClick={handleSignOut}
-              className="px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-            >
-              Déconnexion
-            </button>
-          </div>
-        </div>
-      </header>
-
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Formulaire de création de post */}
         <div className="bg-white rounded-lg shadow p-6 mb-8">
@@ -157,18 +109,29 @@ export default function Dashboard() {
             <textarea
               value={newPost}
               onChange={(e) => setNewPost(e.target.value)}
-              placeholder="Quoi de neuf ?"
+              placeholder={isAuthenticated ? "Quoi de neuf ?" : "Connectez-vous pour publier un post"}
               className="w-full p-4 border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
               rows="3"
+              disabled={!isAuthenticated}
             />
             <div className="mt-4 flex justify-end">
-              <button
-                type="submit"
-                disabled={!newPost.trim()}
-                className="px-6 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors disabled:opacity-50"
-              >
-                Poster
-              </button>
+              {isAuthenticated ? (
+                <button
+                  type="submit"
+                  disabled={!newPost.trim()}
+                  className="px-6 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors disabled:opacity-50"
+                >
+                  Poster
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => router.push('/signin')}
+                  className="px-6 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                >
+                  Se connecter pour publier
+                </button>
+              )}
             </div>
           </form>
         </div>
@@ -192,17 +155,24 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <p className="text-gray-900 mb-4">{post.content}</p>
-                  
                   {/* Bouton pour répondre */}
-                  <button
-                    onClick={() => setReplyingTo(post.id)}
-                    className="text-gray-500 hover:text-red-500 text-sm"
-                  >
-                    Répondre
-                  </button>
-
+                  {isAuthenticated ? (
+                    <button
+                      onClick={() => setReplyingTo(post.id)}
+                      className="text-gray-500 hover:text-red-500 text-sm"
+                    >
+                      Répondre
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => router.push('/signin')}
+                      className="text-gray-400 text-sm cursor-pointer hover:text-red-500"
+                    >
+                      Connectez-vous pour répondre
+                    </button>
+                  )}
                   {/* Formulaire de réponse */}
-                  {replyingTo === post.id && (
+                  {replyingTo === post.id && isAuthenticated && (
                     <form onSubmit={handleReply} className="mt-4">
                       <textarea
                         value={replyContent}
@@ -232,7 +202,6 @@ export default function Dashboard() {
                       </div>
                     </form>
                   )}
-
                   {/* Afficher les réponses */}
                   {post.replies && post.replies.length > 0 && (
                     <div className="mt-4 pl-4 border-l-2 border-gray-200">

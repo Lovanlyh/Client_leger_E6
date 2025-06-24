@@ -3,91 +3,73 @@ import { verify } from 'jsonwebtoken'
 import { cookies } from 'next/headers'
 import prisma from '../../utils/prisma'
 
-// Récupérer tous les posts
-export async function GET(request) {
+// GET /api/posts - Public
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
-
-    const where = userId ? { authorId: userId } : {}
-
     const posts = await prisma.post.findMany({
-      where,
+      where: { parentId: null },
       include: {
-        author: {
-          select: {
-            id: true,
-            email: true,
-            username: true,
-            name: true,
-            avatar: true,
+        author: { select: { id: true, name: true, email: true } },
+        likes: true,
+        replies: {
+          include: {
+            author: { select: { id: true, name: true, email: true } },
+            likes: true
           }
-        },
-        _count: {
-          select: { likes: true }
         }
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: { createdAt: 'desc' }
     })
-
-    return NextResponse.json({ posts })
+    return NextResponse.json(posts)
   } catch (error) {
     console.error('Erreur lors de la récupération des posts:', error)
     return NextResponse.json(
-      { message: 'Erreur lors de la récupération des posts' },
+      { error: 'Erreur lors de la récupération des posts' },
       { status: 500 }
     )
   }
 }
 
-// Créer un nouveau post
+// POST /api/posts - Protégé
 export async function POST(request) {
   try {
-    const token = cookies().get('auth-token')
-
+    const token = cookies().get('token')?.value
     if (!token) {
       return NextResponse.json(
-        { message: 'Non authentifié' },
+        { error: 'Non authentifié' },
         { status: 401 }
       )
     }
-
-    const decoded = verify(token.value, process.env.JWT_SECRET || 'your-secret-key')
-    const { content, imageUrl } = await request.json()
-
-    if (!content || content.trim() === '') {
+    const decoded = verify(token, process.env.JWT_SECRET)
+    if (!decoded) {
       return NextResponse.json(
-        { message: 'Le contenu du post ne peut pas être vide' },
+        { error: 'Token invalide' },
+        { status: 401 }
+      )
+    }
+    const { content } = await request.json()
+    if (!content || content.trim().length === 0) {
+      return NextResponse.json(
+        { error: 'Le contenu ne peut pas être vide' },
         { status: 400 }
       )
     }
-
     const post = await prisma.post.create({
       data: {
-        content,
-        imageUrl,
-        authorId: decoded.userId,
+        content: content.trim(),
+        authorId: decoded.userId
       },
       include: {
-        author: {
-          select: {
-            id: true,
-            email: true,
-            username: true,
-            name: true,
-            avatar: true,
-          }
-        }
+        author: { select: { id: true, name: true, email: true } },
+        likes: true,
+        replies: true
       }
     })
-
-    return NextResponse.json({ post }, { status: 201 })
+    return NextResponse.json(post)
   } catch (error) {
     console.error('Erreur lors de la création du post:', error)
     return NextResponse.json(
-      { message: 'Erreur lors de la création du post' },
+      { error: 'Erreur lors de la création du post' },
       { status: 500 }
     )
   }

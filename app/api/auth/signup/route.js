@@ -1,47 +1,80 @@
 import { NextResponse } from 'next/server'
+import bcrypt from 'bcrypt'
 import prisma from '../../../utils/prisma'
-import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 
 export async function POST(request) {
   try {
-    const { email, password } = await request.json()
+    console.log('Route signup: Nouvelle tentative d\'inscription')
+    const { email, password, name } = await request.json()
 
-    // Vérifier si l'utilisateur existe déjà
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    })
-
-    if (existingUser) {
+    // Validation des champs
+    if (!email || !password || !name) {
+      console.log('Route signup: Données manquantes')
       return NextResponse.json(
-        { message: 'Cet email est déjà utilisé' },
+        { error: 'Tous les champs sont requis' },
         { status: 400 }
       )
     }
 
-    // Hasher le mot de passe
+    // Vérification si l'email existe déjà
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    })
+
+    if (existingUser) {
+      console.log('Route signup: Email déjà utilisé')
+      return NextResponse.json(
+        { error: 'Cet email est déjà utilisé' },
+        { status: 400 }
+      )
+    }
+
+    // Hashage du mot de passe
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // Créer l'utilisateur avec un ID généré automatiquement (uuid)
+    // Création de l'utilisateur
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
-      },
+        name
+      }
     })
 
-    // Retourner une réponse sans le mot de passe
-    return NextResponse.json({
-      message: 'Utilisateur créé avec succès',
+    // Création du token JWT
+    const token = jwt.sign(
+      { userId: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    )
+
+    console.log('Route signup: Inscription réussie')
+
+    // Configuration du cookie
+    const response = NextResponse.json({
+      success: true,
       user: {
         id: user.id,
         email: user.email,
-        createdAt: user.createdAt
+        name: user.name
       }
-    }, { status: 201 })
+    })
+
+    response.cookies.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60,
+      path: '/'
+    })
+
+    return response
+
   } catch (error) {
-    console.error('Erreur lors de l\'inscription:', error)
+    console.error('Route signup: Erreur:', error)
     return NextResponse.json(
-      { message: 'Erreur lors de l\'inscription', error: error.message },
+      { error: 'Une erreur est survenue lors de l\'inscription' },
       { status: 500 }
     )
   }

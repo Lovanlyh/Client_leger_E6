@@ -1,0 +1,11 @@
+# Dossiers à ignorer
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Fichiers à ignorer
+*.log
+.DS_Store
+*.pem

@@ -3,11 +3,10 @@ import { verify } from 'jsonwebtoken'
 import { cookies } from 'next/headers'
 import prisma from '../../../../utils/prisma'
 
-// Ajouter ou supprimer un like
+// POST /api/posts/[id]/like - Ajouter/Retirer un like
 export async function POST(request, { params }) {
   try {
     const token = cookies().get('auth-token')
-
     if (!token) {
       return NextResponse.json(
         { message: 'Non authentifié' },
@@ -16,11 +15,11 @@ export async function POST(request, { params }) {
     }
 
     const decoded = verify(token.value, process.env.JWT_SECRET || 'your-secret-key')
-    const { id } = params
+    const postId = params.id
 
     // Vérifier si le post existe
     const post = await prisma.post.findUnique({
-      where: { id }
+      where: { id: postId }
     })
 
     if (!post) {
@@ -30,33 +29,36 @@ export async function POST(request, { params }) {
       )
     }
 
-    // Vérifier si l'utilisateur a déjà aimé ce post
+    // Vérifier si l'utilisateur a déjà liké le post
     const existingLike = await prisma.like.findUnique({
       where: {
         userId_postId: {
           userId: decoded.userId,
-          postId: id
+          postId: postId
         }
       }
     })
 
     if (existingLike) {
-      // Si le like existe, le supprimer
+      // Si le like existe, on le supprime
       await prisma.like.delete({
         where: {
-          id: existingLike.id
+          userId_postId: {
+            userId: decoded.userId,
+            postId: postId
+          }
         }
       })
-      return NextResponse.json({ liked: false })
+      return NextResponse.json({ message: 'Like retiré' })
     } else {
-      // Sinon, créer un nouveau like
+      // Si le like n'existe pas, on le crée
       await prisma.like.create({
         data: {
           userId: decoded.userId,
-          postId: id
+          postId: postId
         }
       })
-      return NextResponse.json({ liked: true })
+      return NextResponse.json({ message: 'Like ajouté' })
     }
   } catch (error) {
     console.error('Erreur lors de la gestion du like:', error)
